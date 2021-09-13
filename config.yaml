@@ -1,0 +1,8 @@
+bamPath: /mnt/lustre/groups/herv_project/BAMs/
+cramPath:  /mnt/lustre/groups/projectmine/RNAmatchedSamples/
+outPath: /mnt/lustre/groups/herv_project/snakemake/steak/
+HERVK_ref: resources/HERVK_ref.fasta
+novoindex: <WHERE_YOU_DOWNLOADED_HG19.FA>/hg19.ndx
+knownNR: resources/list_of_known_integration_sites.bed
+pythonScripts: pythonScripts
+hg19ref: <WHERE_YOU_DOWNLOADED_HG19>/hg19.fa
