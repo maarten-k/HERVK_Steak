@@ -87,8 +87,14 @@ rule novoalign_trimmed:
     log:
        "logs/novoalign_trimmed/{sample}.log"
     shell:
-       #"conda activate base" 
-       "novoalign -d {config[novoindex]} -o SAM -f {input} | samtools view -Sb  > {output}"
+       """
+       if [ -f {config[novoindex]} ]; then
+          echo "novoalign index found"
+       else 
+           novoindex {config[novoindex]} {config[hg19ref]} 
+       fi
+       novoalign -d {config[novoindex]} -o SAM -f {input} | samtools view -Sb  > {output} 
+       """ 
 
 rule novoalign_guided:
     input:
@@ -105,8 +111,16 @@ rule novoalign_guided:
     log:
        "logs/novoalign_guided/{sample}.log"
     shell:
-       #"conda activate base "
-       "novoalign -d {config[novoindex]} -o SAM -o FullNW -f {input} | samtools view -Sb > {output}"
+       """
+       if [ -f {config[novoindex]} ]; then
+           echo "novoalign index found"
+       else 
+           novoindex {config[novoindex]} {config[hg19ref]} 
+       fi
+       novoalign -d {config[novoindex]} -o SAM -o FullNW -f {input} | samtools view -Sb > {output}
+       """
+
+
 
 
 rule bamToBedTrimmed:
