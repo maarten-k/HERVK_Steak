@@ -10,7 +10,7 @@ rule all:
         expand(outPath + "bamToBed/{sample}.guided.bed", sample=SAMPLES),
         expand(outPath + "bamToBed/{sample}.trimmed.bed", sample=SAMPLES),
         expand(outPath + "known/{sample}.knownHits.bed",sample=SAMPLES),
-	    expand(outPath + "novel/{sample}.novelHits.bed",sample=SAMPLES)
+	expand(outPath + "novel/{sample}.novelHits.bed",sample=SAMPLES)
 
 rule CramToBam:
     input:
