@@ -5,12 +5,19 @@ cramPath = config["cramPath"]
 
 SAMPLES = ["LP6008119-DNA_B04","LP6008119-DNA_E11"]
 
+rule all:
+    input:
+        expand(outPath + "bamToBed/{sample}.guided.bed", sample=SAMPLES),
+        expand(outPath + "bamToBed/{sample}.trimmed.bed", sample=SAMPLES),
+        expand(outPath + "known/{sample}.knownHits.bed",sample=SAMPLES),
+	    expand(outPath + "novel/{sample}.novelHits.bed",sample=SAMPLES)
+
 rule CramToBam:
     input:
         cram_file=cramPath + "{sample}.cram"
     output:
-        bam_file=bamPath + "{sample}.bam",
-        bam_index=bamPath + "{sample}.bam.bai",
+        temp(bamPath + "{sample}.bam"), 
+        bamPath + "{sample}.bam.bai"
     benchmark:
         "benchmarks/CramToBam/{sample}.tsv"
     conda:
@@ -20,15 +27,15 @@ rule CramToBam:
         mem_mb=16000,
     shell:
         """
-        samtools view -b -h -@ {threads} -T {config[hg19ref]} -o {output.bam_file} {input.cram_file}
-        samtools index -@ {threads} {output.bam_file}
+        samtools view -b -h -@ {threads} -T {config[hg19ref]} -o {output[0]} {input.cram_file}
+        samtools index -@ {threads} {output[0]}
         """
 
 rule picard:
     input:
         bamPath + "{sample}.bam"
     output:
-        outPath + "sorted/{sample}.bam"
+        temp(outPath + "sorted/{sample}.bam")
     threads: 8
     benchmark:
       #repeat("benchmarks/{sample}.picard.benchmark.txt",3)  
@@ -44,7 +51,7 @@ rule bamToSam:
     input:
         outPath + "sorted/{sample}.bam"
     output:
-        outPath + "sam/{sample}.sam"
+        temp(outPath + "sam/{sample}.sam")
     threads: 8
     conda:
         "envs/sam_only.yaml"
@@ -74,84 +81,49 @@ rule steak:
     shell:
         "steak --input {input} --TE-reference  {config[HERVK_ref]} --paired --aligned --output {config[outPath]}steak/{wildcards.sample}.Steak.txt"
 
-rule novoalign_trimmed:
+rule novoalign:
     input:
-       outPath + "steak/{sample}.Steak.txt.te.fastq"
+       A=outPath + "steak/{sample}.Steak.txt.1.fastq",
+       B=outPath + "steak/{sample}.Steak.txt.2.fastq",
+       C=outPath + "steak/{sample}.Steak.txt.te.fastq"
     output:
-       outPath + "novoalign_trimmed/{sample}.bam"
+       outPath + "novoalign/{sample}.guided.bam",
+       outPath + "novoalign/{sample}.trimmed.bam"
     threads: 8
     conda:
       "envs/novo.yaml"
     benchmark:
-        "benchmarks/{sample}.novo_trimmed.benchmark.txt"
+        "benchmarks/{sample}.novoalign.benchmark.txt"
     log:
-       "logs/novoalign_trimmed/{sample}.log"
+       "logs/novoalign/{sample}.log"
     shell:
        """
-       if [ -f {config[novoindex]} ]; then
-          echo "novoalign index found"
-       else 
-           novoindex {config[novoindex]} {config[hg19ref]} 
-       fi
-       novoalign -d {config[novoindex]} -o SAM -f {input} | samtools view -Sb  > {output} 
-       """ 
-
-rule novoalign_guided:
-    input:
-       outPath + "steak/{sample}.Steak.txt.1.fastq",
-       outPath + "steak/{sample}.Steak.txt.2.fastq"
-      # outPath + "steak/{sample}.Steak.txt" #edit that, it has 1.fastq etc appended
-    output:
-        outPath + "novoalign_guided/{sample}.bam"
-    threads: 8
-    benchmark:
-        "benchmarks/{sample}.novo_guided.benchmark.txt"
-    conda:
-      "envs/novo.yaml"
-    log:
-       "logs/novoalign_guided/{sample}.log"
-    shell:
-       """
-       if [ -f {config[novoindex]} ]; then
-           echo "novoalign index found"
-       else 
-           novoindex {config[novoindex]} {config[hg19ref]} 
-       fi
-       novoalign -d {config[novoindex]} -o SAM -o FullNW -f {input} | samtools view -Sb > {output}
+       novoalign -d {config[novoindex]} -o SAM -o FullNW -f {input.A} {input.B} | samtools view -Sb > {output[0]}
+       novoalign -d {config[novoindex]} -o SAM -f {input.C} | samtools view -Sb  > {output[1]}
        """
 
-
-
-
-rule bamToBedTrimmed:
+rule bamToBed:
      input:
-      outPath + "novoalign_trimmed/{sample}.bam"
+      outPath + "novoalign/{sample}.guided.bam",
+      outPath + "novoalign/{sample}.trimmed.bam"
      output:
-      outPath + "bamToBed_trimmed/{sample}.bed"
+      outPath + "bamToBed/{sample}.guided.bed",
+      outPath + "bamToBed/{sample}.trimmed.bed"
      log:
-       "logs/bamToBed_trimmed/{sample}.log"
+       "logs/bamToBed/{sample}.log"
      conda:
       "envs/bedtools.yaml"
      shell:
-       "bedtools bamtobed -i {input} > {output}"
-
-rule bamToBedGuided:
-     input:
-      outPath + "novoalign_guided/{sample}.bam"
-     output:
-      outPath + "bamToBed_guided/{sample}.bed"
-     log:
-       "logs/bamToBed_guided/{sample}.log"
-     conda:
-      "envs/bedtools.yaml"
-     shell:
-       "bedtools bamtobed -i {input} > {output}"
+       """
+       bedtools bamtobed -i {input[0]} > {output[0]} 
+       bedtools bamtobed -i {input[1]} > {output[1]} 
+       """
 
 
 rule markKnown:
      input:
-        G=outPath + "bamToBed_guided/{sample}.bed",
-        T=outPath + "bamToBed_trimmed/{sample}.bed"
+        G=outPath + "bamToBed/{sample}.guided.bed",
+        T=outPath + "bamToBed/{sample}.trimmed.bed"
      output:
         outPath + "known/{sample}.knownHits.bed"
      log:
@@ -160,15 +132,17 @@ rule markKnown:
       "envs/bedtools.yaml"
      shell:
         """
-        bedtools window -w 100 -c -a {config[knownNR]} -b  {input.G}  > {wildcards.sample}.guided.readCounts.bed 
-        bedtools window -w 100 -c -a {config[knownNR]} -b  {input.T}  > {wildcards.sample}.trimmed.readCounts.bed 
-        python {config[pythonScripts]}/mergeTrimmedAndGuided.py {wildcards.sample}.guided.readCounts.bed {wildcards.sample}.trimmed.readCounts.bed > {output} 
+        bedtools window -w 500 -c -a {config[knownNR]} -b  {input.G}  > {config[outPath]}known/{wildcards.sample}.guided.readCounts.bed 
+        bedtools window -w 500 -c -a {config[knownNR]} -b  {input.T}  >  {config[outPath]}known/{wildcards.sample}.trimmed.readCounts.bed 
+        python {config[pythonScripts]}/mergeTrimmedAndGuided.py  {config[outPath]}known/{wildcards.sample}.guided.readCounts.bed  {config[outPath]}known/{wildcards.sample}.trimmed.readCounts.bed > {output} 
+        rm  {config[outPath]}known/{wildcards.sample}.guided.readCounts.bed  
+        rm  {config[outPath]}known/{wildcards.sample}.trimmed.readCounts.bed  
         """
 
 rule markNovel:
      input:
-        G=outPath + "bamToBed_guided/{sample}.bed",
-      	T=outPath + "bamToBed_trimmed/{sample}.bed"
+        G=outPath + "bamToBed/{sample}.guided.bed",
+      	T=outPath + "bamToBed/{sample}.trimmed.bed"
      output:
         outPath + "novel/{sample}.novelHits.bed"
      log:
@@ -178,27 +152,16 @@ rule markNovel:
      shell:
         """
         bedtools sort -i  {input.T} >  {config[outPath]}novel/{wildcards.sample}.sortedTrimmed.bed 
-        bedtools window -w 2000 -v -a {config[outPath]}novel/{wildcards.sample}.sortedTrimmed.bed -b {config[knownNR]}| bedtools merge -c 4 -o count -d 1000 -i - | awk '{{if ($4 >=5) print ($0);}}'  > {config[outPath]}novel/{wildcards.sample}.trimmed_novelFiltered.bed 
+        bedtools window -w 500 -v -a {config[outPath]}novel/{wildcards.sample}.sortedTrimmed.bed -b {config[knownNR]}| bedtools merge -c 4 -o count -d 1000 -i - | awk '{{if ($4 >=5) print ($0);}}'  > {config[outPath]}novel/{wildcards.sample}.trimmed_novelFiltered.bed 
         bedtools sort -i  {input.G} >  {config[outPath]}novel/{wildcards.sample}.sortedGuided.bed 
-        bedtools window -w 2000 -v -a {config[outPath]}novel/{wildcards.sample}.sortedGuided.bed  -b {config[knownNR]}| bedtools merge -c 4 -o count -d 1000 -i - | awk '{{if ($4 >=5) print ($0);}}'  > {config[outPath]}novel/{wildcards.sample}.guided_novelFiltered.bed 
+        bedtools window -w 500 -v -a {config[outPath]}novel/{wildcards.sample}.sortedGuided.bed  -b {config[knownNR]}| bedtools merge -c 4 -o count -d 1000 -i - | awk '{{if ($4 >=5) print ($0);}}'  > {config[outPath]}novel/{wildcards.sample}.guided_novelFiltered.bed 
         cat {config[outPath]}novel/{wildcards.sample}.guided_novelFiltered.bed {config[outPath]}novel/{wildcards.sample}.trimmed_novelFiltered.bed  > {config[outPath]}novel/{wildcards.sample}.novelFiltered.bed 
         bedtools sort -i {config[outPath]}novel/{wildcards.sample}.novelFiltered.bed   >  {config[outPath]}novel/{wildcards.sample}.novelFiltered.sorted.bed 
         rm {config[outPath]}novel/{wildcards.sample}.novelFiltered.bed 
         bedtools merge -i {config[outPath]}novel/{wildcards.sample}.novelFiltered.sorted.bed > {output} 
         rm {config[outPath]}novel/{wildcards.sample}.novelFiltered.sorted.bed 
+        rm {config[outPath]}novel/{wildcards.sample}.sortedTrimmed.bed 
+        rm {config[outPath]}novel/{wildcards.sample}.sortedGuided.bed 
+        rm {config[outPath]}novel/{wildcards.sample}.trimmed_novelFiltered.bed 
+        rm {config[outPath]}novel/{wildcards.sample}.guided_novelFiltered.bed  
         """
-
-rule merge:
-    input:
-        bed=expand(outPath + "bamToBed_guided/{sample}.bed", sample=SAMPLES)
-    output:
-        outPath + "final/mergedBed.bed"
-    conda:
-      "envs/bedtools.yaml"
-    shell:
-        #"cat {input.bed} > {output}"
-        "cat {input.bed} | grep -E 'chr[[:digit:]XY]' > {config[outPath]}final/noHeader.bed "
-        "bedtools sort -i {config[outPath]}final/noHeader.bed > {config[outPath]}final/noHeader.sorted.bed"
-        "bedtools merge -i {config[outPath]}final/noHeader.sorted.bed > {output}"
-        "rm {config[outPath]}final/noHeader.bed"
-        "rm {config[outPath]}final/noHeader.sorted.bed"
