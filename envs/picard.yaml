@@ -1,4 +1,4 @@
 channels:
   - bioconda
 dependencies:
-  - picard
+  -  picard-slim=2.27.4
