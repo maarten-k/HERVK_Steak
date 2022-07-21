@@ -3,7 +3,7 @@ bamPath = config["bamPath"]
 outPath = config["outPath"]
 cramPath = config["cramPath"]
 
-SAMPLES = ["LP6008119-DNA_B04","LP6008119-DNA_E11"]
+SAMPLES = ["samplecram"]
 
 rule all:
     input:
@@ -33,7 +33,7 @@ rule CramToBam:
 
 rule picard:
     input:
-        bamPath + "{sample}.bam"
+        cramPath + "{sample}.cram"
     output:
         temp(outPath + "sorted/{sample}.bam")
     threads: 8
@@ -76,10 +76,8 @@ rule steak:
         #repeat("benchmarks/{sample}.steak.benchmark.txt",3)
     log:
        "logs/steak/{sample}.log"
-    envmodules:
-        "apps/steak/20190912-singularity"
     shell:
-        "steak --input {input} --TE-reference  {config[HERVK_ref]} --paired --aligned --output {config[outPath]}steak/{wildcards.sample}.Steak.txt"
+        "singularity exec ../steak.sif /STEAK-master/steak  --input {input} --TE-reference  {config[HERVK_ref]} --paired --aligned --output {config[outPath]}steak/{wildcards.sample}.Steak.txt"
 
 rule novoalign:
     input:
