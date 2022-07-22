@@ -1,8 +1,10 @@
-bamPath: /mnt/lustre/groups/herv_project/BAMs/
-cramPath:  /home/projectmine-mkooyman/STEAK/
+cramPath:  unset
 outPath: results/
-HERVK_ref: resources/HERVK_ref.fasta
-novoindex: /home/projectmine-mkooyman/STEAK/novoindex
-knownNR: resources/list_of_known_integration_sites.bed
+HERVK_ref: /cvmfs/softdrive.nl/kooyman/STEAK/HERVK_ref.fasta
+novoindex: /cvmfs/softdrive.nl/kooyman/STEAK/novoindex
+knownNR: /cvmfs/softdrive.nl/kooyman/STEAK/list_of_known_integration_site_liftoverhg19_to_38.bed
 pythonScripts: pythonScripts
 hg19ref: /cvmfs/softdrive.nl/projectmine_sw/resources/Build38/hs38DH/hs38DH.fa
+sample: samplecram
+condacontainer: /cvmfs/softdrive.nl/kooyman/STEAK/HERVK_Steak-2022-07-21-07f839833b5f.sif
+steakcontainer: /cvmfs/softdrive.nl/kooyman/STEAK/steak.sif 
