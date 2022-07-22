@@ -1,11 +1,13 @@
 configfile: "config.yaml"
 
 
-bamPath = config["bamPath"]
+containerized: config["condacontainer"]
+
+
 outPath = config["outPath"]
 cramPath = config["cramPath"]
 
-SAMPLES = ["samplecram"]
+SAMPLES = [config["sample"]]
 
 
 rule all:
@@ -30,12 +32,15 @@ rule picard:
     log:
         "logs/picard/{sample}.log",
     shell:
-        "picard SortSam I={input} O={output} SORT_ORDER=queryname VALIDATION_STRINGENCY=LENIENT > {log}"
+        """
+        picard SortSam I={input} O={output} SORT_ORDER=queryname VALIDATION_STRINGENCY=LENIENT > {log}
+        """
 
 
 rule steak:
     input:
-        outPath + "sam/{sample}.sam",
+        sam=outPath + "sam/{sample}.sam",
+        steaksif=config["steakcontainer"],
     output:
         outPath + "steak/{sample}.Steak.txt.1.fastq",
         outPath + "steak/{sample}.Steak.txt.2.fastq",
@@ -45,9 +50,10 @@ rule steak:
         "benchmarks/{sample}.steak.benchmark.txt"
     log:
         "logs/steak/{sample}.log",
-    container: None
+    container:
+        None
     shell:
-        "singularity exec ../steak.sif /STEAK-master/steak  --input {input} --TE-reference  {config[HERVK_ref]} --paired --aligned --output {config[outPath]}steak/{wildcards.sample}.Steak.txt"
+        "/usr/bin/singularity exec {input.steaksif}  /STEAK-master/steak  --input {input.sam} --TE-reference  {config[HERVK_ref]} --paired --aligned --output {config[outPath]}steak/{wildcards.sample}.Steak.txt"
 
 
 rule novoalign:
