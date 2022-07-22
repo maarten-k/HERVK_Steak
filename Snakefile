@@ -20,7 +20,8 @@ rule all:
 
 rule picard:
     input:
-        cramPath + "{sample}.cram",
+        cram=cramPath + "{sample}.cram",
+        ref=config["hg19ref"],
     output:
         temp(outPath + "sam/{sample}.sam"),
     threads: 8
@@ -33,7 +34,7 @@ rule picard:
         "logs/picard/{sample}.log",
     shell:
         """
-        picard SortSam I={input} O={output} SORT_ORDER=queryname VALIDATION_STRINGENCY=LENIENT > {log}
+        picard SortSam I={input.cram} O={output} R={input.ref} SORT_ORDER=queryname VALIDATION_STRINGENCY=LENIENT > {log}
         """
 
 
