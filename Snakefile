@@ -18,33 +18,57 @@ rule all:
         expand(outPath + "novel/{sample}.novelHits.bed", sample=SAMPLES),
 
 
-rule picard:
+rule SortOnName:
     input:
-        cramPath + "{sample}.cram",
+        cramPath + "/{sample}.cram",
     output:
-        temp(outPath + "sam/{sample}.sam"),
-    threads: 8
+        temp(outPath + "sam/{sample}.sqfs"),
+    group:"squash"
+    threads: 1
     benchmark:
         #repeat("benchmarks/{sample}.picard.benchmark.txt",3)  
         "benchmarks/{sample}.picard.benchmark.txt"
     conda:
-        "envs/picard.yaml"
+        "envs/sortonname.yaml"
     log:
         "logs/picard/{sample}.log",
     shell:
         """
-        picard SortSam I={input} O={output} SORT_ORDER=queryname VALIDATION_STRINGENCY=LENIENT > {log}
+        picard SortSam -I {input} -O /dev/stdout -REFERENCE_SEQUENCE hg19.fa -COMPRESSION_LEVEL 0 -SORT_ORDER queryname -VALIDATION_STRINGENCY LENIENT -QUIET true | samtools view -O sam --input-fmt-option required_fields=0x23d |mksquashfs /dev/null {output} -comp zstd -Xcompression-level 1 -p "{wildcards.sample}.sam f 644 0 0 cat" 
+        """
+
+
+rule MountSquasfs:
+    input:
+        outPath + "sam/{sample}.sqfs",
+    output:
+        temp(outPath + "sam/{sample}_mounted"),
+    params:
+        sam=outPath + "sam/{sample}_mount/{sample}.sam",
+        dir=directory(outPath + "sam/{sample}_mount"),
+    group:"squash"
+    conda:
+        "envs/squashfs.yaml"
+    shell:
+        """
+        mkdir -p {params.dir}
+        squashfuse {input} {params.dir}
+        touch {output} 
         """
 
 
 rule steak:
     input:
-        sam=outPath + "sam/{sample}.sam",
+        sqfs=outPath + "sam/{sample}.sqfs",
+        mounted=outPath + "sam/{sample}_mounted",
         steaksif=config["steakcontainer"],
     output:
         outPath + "steak/{sample}.Steak.txt.1.fastq",
         outPath + "steak/{sample}.Steak.txt.2.fastq",
         outPath + "steak/{sample}.Steak.txt.te.fastq",
+    params:
+        sam=outPath + "sam/{sample}_mount/{sample}.sam",
+    group:"squash"
     threads: 1
     benchmark:
         "benchmarks/{sample}.steak.benchmark.txt"
@@ -53,7 +77,29 @@ rule steak:
     container:
         None
     shell:
-        "/usr/bin/singularity exec {input.steaksif}  /STEAK-master/steak  --input {input.sam} --TE-reference  {config[HERVK_ref]} --paired --aligned --output {config[outPath]}steak/{wildcards.sample}.Steak.txt"
+        """
+        /usr/bin/singularity exec {input.steaksif}  /STEAK-master/steak  --input {params.sam}  --TE-reference  {config[HERVK_ref]} --paired --aligned --output {config[outPath]}steak/{wildcards.sample}.Steak.txt
+        """
+
+
+rule unmountSqaushfs:
+    input:
+        outPath + "steak/{sample}.Steak.txt.1.fastq",
+        lockfile=outPath + "sam/{sample}_mounted",
+        sqfs=outPath + "sam/{sample}.sqfs",
+    params:
+        dir=outPath + "sam/{sample}_mount",
+    group:"squash"
+    output:
+        temp(outPath + "sam/{sample}.unmount"),
+    conda:
+        "envs/squashfs.yaml"
+    shell:
+        """
+        fusermount -u {params.dir}
+        #rm {input.lockfile}
+        touch {output}
+        """
 
 
 rule novoalign:
@@ -61,6 +107,7 @@ rule novoalign:
         A=outPath + "steak/{sample}.Steak.txt.1.fastq",
         B=outPath + "steak/{sample}.Steak.txt.2.fastq",
         C=outPath + "steak/{sample}.Steak.txt.te.fastq",
+        unmount=outPath + "sam/{sample}.unmount",
     output:
         outPath + "novoalign/{sample}.guided.bam",
         outPath + "novoalign/{sample}.trimmed.bam",

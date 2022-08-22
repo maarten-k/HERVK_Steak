@@ -1,0 +1,8 @@
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - picard-slim=2.27.4
+  - squashfs-tools
+  - samtools=1.15.1
+
