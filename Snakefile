@@ -20,7 +20,8 @@ rule all:
 
 rule SortOnName:
     input:
-        cramPath + "/{sample}.cram",
+        cram=cramPath + "{sample}.cram",
+        ref=config["hg19ref"],
     output:
         temp(outPath + "sam/{sample}.sqfs"),
     group:"squash"
