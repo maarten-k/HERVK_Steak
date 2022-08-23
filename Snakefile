@@ -24,7 +24,6 @@ rule SortOnName:
         ref=config["hg19ref"],
     output:
         temp(outPath + "sam/{sample}.sqfs"),
-    group:"squash"
     threads: 1
     benchmark:
         #repeat("benchmarks/{sample}.picard.benchmark.txt",3)  
@@ -35,7 +34,7 @@ rule SortOnName:
         "logs/picard/{sample}.log",
     shell:
         """
-        picard SortSam -I {input} -O /dev/stdout -REFERENCE_SEQUENCE hg19.fa -COMPRESSION_LEVEL 0 -SORT_ORDER queryname -VALIDATION_STRINGENCY LENIENT -QUIET true | samtools view -O sam --input-fmt-option required_fields=0x23d |mksquashfs /dev/null {output} -comp zstd -Xcompression-level 1 -p "{wildcards.sample}.sam f 644 0 0 cat" 
+        picard SortSam -I {input.cram} -O /dev/stdout -REFERENCE_SEQUENCE {input.ref} -COMPRESSION_LEVEL 0 -SORT_ORDER queryname -VALIDATION_STRINGENCY LENIENT -QUIET true | samtools view -O sam --input-fmt-option required_fields=0x23d |mksquashfs /dev/null {output} -comp zstd -Xcompression-level 1 -p "{wildcards.sample}.sam f 644 0 0 cat" 
         """
 
 
@@ -49,7 +48,10 @@ rule MountSquasfs:
         dir=directory(outPath + "sam/{sample}_mount"),
     group:"squash"
     conda:
-        "envs/squashfs.yaml"
+        "squashfs"
+    container:
+        None
+
     shell:
         """
         mkdir -p {params.dir}
@@ -94,7 +96,10 @@ rule unmountSqaushfs:
     output:
         temp(outPath + "sam/{sample}.unmount"),
     conda:
-        "envs/squashfs.yaml"
+        "squashfs"
+    container:
+        None
+
     shell:
         """
         fusermount -u {params.dir}
