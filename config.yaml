@@ -1,10 +1,10 @@
-cramPath:  unset
+cramPath:  /home/projectmine-mkooyman/STEAK/HERVK_Steak/
 outPath: results/
 HERVK_ref: /cvmfs/softdrive.nl/kooyman/STEAK/HERVK_ref.fasta
 novoindex: /cvmfs/softdrive.nl/kooyman/STEAK/novoindex
 knownNR: /cvmfs/softdrive.nl/kooyman/STEAK/list_of_known_integration_site_liftoverhg19_to_38.bed
 pythonScripts: pythonScripts
 hg19ref: /cvmfs/softdrive.nl/projectmine_sw/resources/Build38/hs38DH/hs38DH.fa
-sample: samplecram
-condacontainer: /cvmfs/softdrive.nl/kooyman/STEAK/HERVK_Steak-2022-07-21-07f839833b5f.sif
+sample: sample
+condacontainer: /cvmfs/softdrive.nl/kooyman/STEAK/steak_conda_env.sif
 steakcontainer: /cvmfs/softdrive.nl/kooyman/STEAK/steak.sif 
