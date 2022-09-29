@@ -34,7 +34,7 @@ rule SortOnName:
         "logs/picard/{sample}.log",
     shell:
         """
-        picard SortSam -I {input.cram} -O /dev/stdout -REFERENCE_SEQUENCE {input.ref} -COMPRESSION_LEVEL 0 -SORT_ORDER queryname -VALIDATION_STRINGENCY LENIENT -QUIET true | samtools view -O sam --input-fmt-option required_fields=0x23d |mksquashfs /dev/null {output} -comp zstd -Xcompression-level 1 -p "{wildcards.sample}.sam f 644 0 0 cat" 
+        picard SortSam -I {input.cram} -O /dev/stdout -QUIET true -REFERENCE_SEQUENCE {input.ref} -COMPRESSION_LEVEL 0 -SORT_ORDER queryname -VALIDATION_STRINGENCY LENIENT -QUIET true | samtools view -O sam --input-fmt-option required_fields=0x23d |mksquashfs /dev/null {output} -comp zstd -Xcompression-level 1 -p "{wildcards.sample}.sam f 644 0 0 cat" 
         """
 
 
